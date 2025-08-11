@@ -40,20 +40,20 @@ const requestType = {
 }
 
 const InvictiUrls = [
-  "https://netsparkercloud.com/",
-  "https://ie.invicti.com/",
-  "https://eu.netsparker.cloud/",
-  "https://ca.netsparker.cloud/",
-  "https://online.acunetix360.com/",
-  "https://ondemand.acunetix360.com/",
-  "https://novonordisk.netsparker.cloud/",
-  "https://hsbc.netsparker.cloud/",
-  "https://uat-hsbc.netsparker.cloud/",
-  "https://desjardins-ca.netsparker.cloud/",
-  "https://preproduction.netsparker.cloud/",
-  "https://demo.netsparker.cloud/",
-  "https://test.netsparker.cloud/",
-  "https://ie-capitalone.invicti.com/",
+  "https://netsparkercloud.com",
+  "https://ie.invicti.com",
+  "https://eu.netsparker.cloud",
+  "https://ca.netsparker.cloud",
+  "https://online.acunetix360.com",
+  "https://ondemand.acunetix360.com",
+  "https://novonordisk.netsparker.cloud",
+  "https://hsbc.netsparker.cloud",
+  "https://uat-hsbc.netsparker.cloud",
+  "https://desjardins-ca.netsparker.cloud",
+  "https://preproduction.netsparker.cloud",
+  "https://demo.netsparker.cloud",
+  "https://test.netsparker.cloud",
+  "https://ie-capitalone.invicti.com",
 ];
 
 // Function to validate the base URL against the whitelist
@@ -63,6 +63,11 @@ function isBaseUrlValid(baseUrl) {
     
     if (baseUrl.startsWith('https://www.')) {
       normalizedUrl = baseUrl.replace('https://www.', 'https://');
+    }
+
+    // Trim trailing slash if it exists
+    if (normalizedUrl.endsWith('/')) {
+      normalizedUrl = normalizedUrl.slice(0, -1);
     }
     
     if (InvictiUrls.includes(normalizedUrl)) {
