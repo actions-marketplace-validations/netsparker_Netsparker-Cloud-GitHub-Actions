@@ -59,15 +59,15 @@ const InvictiUrls = [
 function isBaseUrlValid(baseUrl) {
   try {
     let normalizedUrl = baseUrl;
-    
+
     if (baseUrl.startsWith('https://www.')) {
       normalizedUrl = baseUrl.replace('https://www.', 'https://');
     }
-    
+
     if (normalizedUrl.endsWith('/')) {
       normalizedUrl = normalizedUrl.slice(0, -1);
     }
-    
+
     if (InvictiUrls.includes(normalizedUrl)) {
       return true;
     }
@@ -333,8 +333,15 @@ async function getScanReport(scanId, userIdInput, apiTokenInput, baseUrl) {
     const response = await axios(config);
     let content = response.data;
 
-    let artifactName = `scan-result-${scanId}-${type}.${format}`;
-    let artifactPath = path.join('.', artifactFileName);
+    const baseDir = path.resolve('.');
+    let artifactFileName = `scan-result-${scanId}-${type}.${format}`;
+    const artifactPath = path.normalize(path.join(baseDir, artifactFileName));
+
+    if (!artifactPath.startsWith(baseDir)) {
+      core.setFailed("Path traversal attempt detected. Invalid artifact path.");
+      return;
+    }
+
     fs.writeFileSync(artifactPath, content);
 
     const artifact = new DefaultArtifactClient();
