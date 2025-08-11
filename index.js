@@ -56,7 +56,6 @@ const InvictiUrls = [
   "https://ie-capitalone.invicti.com",
 ];
 
-// Function to validate the base URL against the whitelist
 function isBaseUrlValid(baseUrl) {
   try {
     let normalizedUrl = baseUrl;
@@ -64,8 +63,7 @@ function isBaseUrlValid(baseUrl) {
     if (baseUrl.startsWith('https://www.')) {
       normalizedUrl = baseUrl.replace('https://www.', 'https://');
     }
-
-    // Trim trailing slash if it exists
+    
     if (normalizedUrl.endsWith('/')) {
       normalizedUrl = normalizedUrl.slice(0, -1);
     }
@@ -83,7 +81,6 @@ function isBaseUrlValid(baseUrl) {
       return true;
     }
   } catch (e) {
-    // If parsing fails, it's not a valid URL
     core.setFailed(`Invalid URL: ${baseUrl}. Error: ${e.message}`);
     return false;
   }
