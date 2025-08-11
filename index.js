@@ -58,12 +58,18 @@ const InvictiUrls = [
 
 // Function to validate the base URL against the whitelist
 function isBaseUrlValid(baseUrl) {
-  if (InvictiUrls.includes(baseUrl)) {
-    return true;
-  }
-
-  // Check against the dynamic pattern 172-*-*-*.netsparker.cloud for Feature Branch Environments
   try {
+    let normalizedUrl = baseUrl;
+    
+    if (baseUrl.startsWith('https://www.')) {
+      normalizedUrl = baseUrl.replace('https://www.', 'https://');
+    }
+    
+    if (InvictiUrls.includes(normalizedUrl)) {
+      return true;
+    }
+
+    // Check against the dynamic pattern 172-*-*-*.netsparker.cloud for Feature Branch Environments
     const url = new URL(baseUrl);
     const hostname = url.hostname;
     const regex = /^172(-\d{1,3}){3}\.netsparker\.cloud$/;
@@ -72,7 +78,8 @@ function isBaseUrlValid(baseUrl) {
       return true;
     }
   } catch (e) {
-    core.setFailed(e.message);
+    // If parsing fails, it's not a valid URL
+    core.setFailed(`Invalid URL: ${baseUrl}. Error: ${e.message}`);
     return false;
   }
 
