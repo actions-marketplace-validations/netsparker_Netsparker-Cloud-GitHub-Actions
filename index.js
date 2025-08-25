@@ -2,7 +2,8 @@ const core = require('@actions/core');
 const axios = require('axios');
 const qs = require('qs');
 const fs = require('fs');
-const {DefaultArtifactClient} = require('@actions/artifact');
+const path = require('path');
+const { DefaultArtifactClient } = require('@actions/artifact');
 
 const createScanRequestEndpoint = '/api/1.0/scans/CreateFromPluginScanRequest';
 const scanStatusPath = '/scans/status/';
@@ -38,6 +39,55 @@ const requestType = {
   POST: 'POST',
 }
 
+const InvictiUrls = [
+  "https://netsparkercloud.com",
+  "https://ie.invicti.com",
+  "https://eu.netsparker.cloud",
+  "https://ca.netsparker.cloud",
+  "https://online.acunetix360.com",
+  "https://ondemand.acunetix360.com",
+  "https://novonordisk.netsparker.cloud",
+  "https://hsbc.netsparker.cloud",
+  "https://uat-hsbc.netsparker.cloud",
+  "https://desjardins-ca.netsparker.cloud",
+  "https://preproduction.netsparker.cloud",
+  "https://demo.netsparker.cloud",
+  "https://test.netsparker.cloud",
+  "https://ie-capitalone.invicti.com",
+];
+
+function isBaseUrlValid(baseUrl) {
+  try {
+    let normalizedUrl = baseUrl;
+
+    if (baseUrl.startsWith('https://www.')) {
+      normalizedUrl = baseUrl.replace('https://www.', 'https://');
+    }
+
+    if (normalizedUrl.endsWith('/')) {
+      normalizedUrl = normalizedUrl.slice(0, -1);
+    }
+
+    if (InvictiUrls.includes(normalizedUrl)) {
+      return true;
+    }
+
+    // Check against the dynamic pattern 172-*-*-*.netsparker.cloud for Feature Branch Environments
+    const url = new URL(baseUrl);
+    const hostname = url.hostname;
+    const regex = /^172(-\d{1,3}){3}\.netsparker\.cloud$/;
+
+    if (regex.test(hostname)) {
+      return true;
+    }
+  } catch (e) {
+    core.setFailed(`Invalid URL: ${baseUrl}. Error: ${e.message}`);
+    return false;
+  }
+
+  return false;
+}
+
 function isEmpty(str) {
   return (!str || str === '');
 }
@@ -57,9 +107,9 @@ function getScanType(scanTypeEnum) {
 
 function isScanTypeValid(scanType) {
   return (
-    scanType === scanTypes.PRIMARY ||
-    scanType === scanTypes.INCREMENTAL ||
-    scanType === scanTypes.SELECTED
+      scanType === scanTypes.PRIMARY ||
+      scanType === scanTypes.INCREMENTAL ||
+      scanType === scanTypes.SELECTED
   );
 }
 
@@ -101,19 +151,19 @@ function getSeverityLevel(severityLevelEnum) {
 
 function isVulnerabilityLevelValid(vulnerabilityLevel) {
   return (
-    vulnerabilityLevel === SEVERITY_LEVELS.CRITICAL ||
-    vulnerabilityLevel === SEVERITY_LEVELS.HIGH ||
-    vulnerabilityLevel === SEVERITY_LEVELS.MEDIUM ||
-    vulnerabilityLevel === SEVERITY_LEVELS.LOW ||
-    vulnerabilityLevel === SEVERITY_LEVELS.BEST_PRACTICE ||
-    vulnerabilityLevel === SEVERITY_LEVELS.NONE
+      vulnerabilityLevel === SEVERITY_LEVELS.CRITICAL ||
+      vulnerabilityLevel === SEVERITY_LEVELS.HIGH ||
+      vulnerabilityLevel === SEVERITY_LEVELS.MEDIUM ||
+      vulnerabilityLevel === SEVERITY_LEVELS.LOW ||
+      vulnerabilityLevel === SEVERITY_LEVELS.BEST_PRACTICE ||
+      vulnerabilityLevel === SEVERITY_LEVELS.NONE
   );
 }
 
 function needsProfile(scanType) {
   return (
-    scanType === scanTypes.INCREMENTAL ||
-    scanType === scanTypes.SELECTED
+      scanType === scanTypes.INCREMENTAL ||
+      scanType === scanTypes.SELECTED
   );
 }
 
@@ -199,38 +249,38 @@ async function scanRequest(websiteIdInput, scanTypeInput, userIdInput, apiTokenI
     };
 
     console.log("Requesting scan...");
-    
-    await axios(config)
-    .then(function (response) {
-      try {
-        var result = JSON.parse(JSON.stringify(response.data));
-      } catch (error) {
-        core.error("Error parsing JSON %s", error.message);
-        throw error;
-      }
 
-      if (result.IsValid) {
-        process.env['CURRENT_SCAN_ID'] = result.ScanTaskId;
-        core.setOutput('scan-message', `Scan details are available at ${String(scanStatusBaseUrl + result.ScanTaskId)}`);
-        return 0;
-      } else {
-        throw result;
-      }
-    }).catch(function (error) {
-      if(error.response === undefined){
-        core.setFailed(`Error: ${error.syscall} ${error.code}  Hostname: ${error.hostname}`);
-        return -2
-      }else if (error.response.data != null && !error.response.data.IsValid) {
-        if (isEmpty(error.response.data.ErrorMessage)) {
-          core.setFailed(`Scan could not be created. Check error: ${error.response.data}`);
-        } else {
-          core.setFailed(`Scan could not be created. Check error message: ${error.response.data.ErrorMessage}`);
-        }
-        return -3;
-      }
-      core.setFailed(`Error: ${error}`);
-      return -4;
-    });
+    await axios(config)
+        .then(function (response) {
+          try {
+            var result = JSON.parse(JSON.stringify(response.data));
+          } catch (error) {
+            core.error("Error parsing JSON %s", error.message);
+            throw error;
+          }
+
+          if (result.IsValid) {
+            process.env['CURRENT_SCAN_ID'] = result.ScanTaskId;
+            core.setOutput('scan-message', `Scan details are available at ${String(scanStatusBaseUrl + result.ScanTaskId)}`);
+            return 0;
+          } else {
+            throw result;
+          }
+        }).catch(function (error) {
+          if (error.response === undefined) {
+            core.setFailed(`Error: ${error.syscall} ${error.code}  Hostname: ${error.hostname}`);
+            return -2
+          } else if (error.response.data != null && !error.response.data.IsValid) {
+            if (isEmpty(error.response.data.ErrorMessage)) {
+              core.setFailed(`Scan could not be created. Check error: ${error.response.data}`);
+            } else {
+              core.setFailed(`Scan could not be created. Check error message: ${error.response.data.ErrorMessage}`);
+            }
+            return -3;
+          }
+          core.setFailed(`Error: ${error}`);
+          return -4;
+        });
   } catch (error) {
     core.setFailed(error.message);
     return -5;
@@ -238,28 +288,35 @@ async function scanRequest(websiteIdInput, scanTypeInput, userIdInput, apiTokenI
 }
 
 async function statusCheck(scanId, userIdInput, apiTokenInput, baseUrl) {
-    try {
-      let scanStatusBaseUrl = baseUrl + scanStatusEndpoint + scanId;
-  
-      const config = {
-        method: requestType.GET,
-        url: scanStatusBaseUrl,
-        headers: { 
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'Authorization': `Basic ${Buffer.from(`${userIdInput}:${apiTokenInput}`).toString('base64')}`
-        }
-      };
-  
-      const response = await axios(config);
-      return response.data;
-    } catch (error) {
-      core.error(`Error occurred during scan status check: ${error.message}`);
-      throw error; // Rethrow the error to propagate it
-    }
+  try {
+    let scanStatusBaseUrl = baseUrl + scanStatusEndpoint + scanId;
+
+    const config = {
+      method: requestType.GET,
+      url: scanStatusBaseUrl,
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Authorization': `Basic ${Buffer.from(`${userIdInput}:${apiTokenInput}`).toString('base64')}`
+      }
+    };
+
+    const response = await axios(config);
+    return response.data;
+  } catch (error) {
+    core.error(`Error occurred during scan status check: ${error.message}`);
+    throw error; // Rethrow the error to propagate it
+  }
 }
 
 async function getScanReport(scanId, userIdInput, apiTokenInput, baseUrl) {
   try {
+    // Regex to validate the scanId as a GUID without hyphens
+    const guidRegex = /^[0-9a-fA-F]{32}$/;
+    if (!guidRegex.test(scanId)) {
+      core.setFailed("Invalid scanId format. The scanId must be a 32-character GUID without hyphens.");
+      return;
+    }
+
     let type = "Crawled"; // Crawled, ExecutiveSummary
     let format = "Xml"; // Html, Pdf, Xml, Csv, Json, Txt
     let scanResultBaseUrl = baseUrl + `/api/1.0/scans/report?Id=${scanId}&type=${type}&format=${format}`;
@@ -267,7 +324,7 @@ async function getScanReport(scanId, userIdInput, apiTokenInput, baseUrl) {
     const config = {
       method: requestType.GET,
       url: scanResultBaseUrl ,
-      headers: { 
+      headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
         'Authorization': `Basic ${Buffer.from(`${userIdInput}:${apiTokenInput}`).toString('base64')}`
       }
@@ -276,8 +333,17 @@ async function getScanReport(scanId, userIdInput, apiTokenInput, baseUrl) {
     const response = await axios(config);
     let content = response.data;
 
-    let artifactName = `scan-result-${scanId}-${type}.${format}`;
-    fs.writeFileSync(artifactName, content);
+    const baseDir = path.resolve('.');
+    let artifactFileName = `scan-result-${scanId}-${type}.${format}`;
+    const artifactPath = path.normalize(path.join(baseDir, artifactFileName));
+
+    if (!artifactPath.startsWith(baseDir)) {
+      core.setFailed("Path traversal attempt detected. Invalid artifact path.");
+      return;
+    }
+
+    fs.writeFileSync(artifactPath, content);
+
     const artifact = new DefaultArtifactClient();
     await artifact.uploadArtifact(artifactName, [artifactName], '.');
     return artifactName;
@@ -351,6 +417,11 @@ async function main() {
 
   if (isEmpty(baseUrl)) {
     core.setFailed(`Base URL is missing. Please check your generated script.`);
+    return;
+  }
+
+  if (!isBaseUrlValid(baseUrl)) {
+    core.setFailed(`Base URL is not valid. It must be a known Invicti URL or match the pattern 172-*-*-*.netsparker.cloud.`);
     return;
   }
 
@@ -469,7 +540,7 @@ async function main() {
       case 'Complete':
         console.log(`Scan completed.`);
         isScanOngoing = false;
-        break;    
+        break;
       case 'Failed':
         core.setFailed(`Scan failed.`);
         isScanOngoing = false;
@@ -484,7 +555,7 @@ async function main() {
         break;
     }
 
-    
+
 
   } while (isScanOngoing);
 
